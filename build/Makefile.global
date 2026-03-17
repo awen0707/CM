@@ -1,0 +1,363 @@
+##########################################################################
+# Enable options
+##########################################################################
+
+ifeq ($(USE_BUILD_MAKE), ON)
+    ENABLE_MULTIPLE_NODES=$(MULTIPLE_NODES)
+    ENABLE_ETCD=$(ETCD)
+    ENABLE_HOTPATCH=$(HOTPATCH)
+    ENABLE_LIBPQ=$(LIBPQ)
+    ENABLE_KRB=$(KRB)
+    ENABLE_ALARM=$(ALARM)
+    ENABLE_UT=OFF
+    ENABLE_MEMCHECK=$(MEMCHECK)
+    ENABLE_GCOV=$(GCOV)
+    ENABLE_PRIVATEGAUSS=$(PRIVATEGAUSS)
+    BUILD_TYPE=$(MAKE_BUILD_TYPE)
+else
+    ifndef BUILD_TYPE
+        BUILD_TYPE=Debug
+    endif
+
+    ifndef ENABLE_MEMCHECK
+        ENABLE_MEMCHECK=OFF
+    endif
+
+    ENABLE_MULTIPLE_NODES=OFF
+    ENABLE_ETCD=OFF
+    ENABLE_HOTPATCH=OFF
+    ENABLE_LIBPQ=ON
+    ENABLE_KRB=OFF
+    ENABLE_ALARM=ON
+    ENABLE_UT=OFF
+    ENABLE_GCOV=OFF
+    ENABLE_PRIVATEGAUSS=OFF
+endif
+
+##########################################################################
+# Meta configuration
+##########################################################################
+
+PROJECT_SOURCE_DIR = $(CM_TOP_BUILDDIR)
+SCRIPT_PATH=$(CM_TOP_BUILDDIR)/build
+OUT_PATH=$(SCRIPT_PATH)/output
+MAKE_INSTALL_PREFIX=$(OUT_PATH)
+BUILD_MODE=Debug
+
+CM_COMMON_FLAGS = -std=c++11
+G_LIB_VERSION = 1
+LIB_MODE = comm
+LIB_MODE_COMM = comm
+CC = g++
+
+CXXFLAGS=
+CPPFLAGS=
+LDFLAGS=
+LIBS=
+
+ifeq ($(BUILD_TYPE), Debug)
+    BUILD_MODE = Debug
+    OPTIMIZE_LEVEL = -O0 -g
+else ifeq ($(BUILD_TYPE), Release)
+    BUILD_MODE = Release
+    ENABLE_MEMCHECK = OFF
+    ENABLE_UT=OFF
+    OPTIMIZE_LEVEL = -O2 -g3
+else
+    $(error unsupported BUILD_TYPE is $(BUILD_TYPE))
+endif
+
+ifeq ($(ENABLE_MEMCHECK)_$(ENABLE_UT), ON_ON)
+    $(error unsupported ENABLE_MEMCHECK and ENABLE_UT both true!)
+endif
+
+PLAT_FORM_NAME = $(shell sh $(SCRIPT_PATH)/get_PlatForm_str.sh)
+BUILD_TUPLE = $(shell uname -p)
+
+ifeq ($(BUILD_TUPLE), x86_64)
+    OS_OPTIONS = -msse4.2 -mcx16
+    COMPILE_MACRO += -DUSE_SSE42_CRC32C_WITH_RUNTIME_CHECK
+else ifeq ($(BUILD_TUPLE), aarch64)
+    USE_SSE42_CRC32C_WITH_RUNTIME_CHECK = OFF
+    ifeq ($(ENABLE_MULTIPLE_NODES)_$(BUILD_TYPE) , ON_Release))
+        OS_OPTIONS = -march=armv8-a+crc+lse
+    else
+        OS_OPTIONS = -march=armv8-a+crc
+    endif
+endif
+
+ifeq ($(ENABLE_MULTIPLE_NODES)_$(ENABLE_PRIVATEGAUSS), OFF_OFF)
+    ENABLE_HOTPATCH = OFF
+endif
+
+HOTPATCH_PLATFORM_LIST = suse11_sp1_x86_64 suse12_sp5_x86_64 euleros2.0_sp8_aarch64 euleros2.0_sp9_aarch64 euleros2.0_sp10_aarch64 euleros2.0_sp2_x86_64 euleros2.0_sp5_x86_64 euleros2.0_sp10_x86_64 kylinv10_sp1_aarch64 kylinv10_sp1_x86_64
+HOTPATCH_ARM_LIST = euleros2.0_sp8_aarch64 euleros2.0_sp9_aarch64 euleros2.0_sp10_aarch64 kylinv10_sp1_aarch64
+RET_HOTPATCH = $(findstring $(PLAT_FORM_NAME),$(HOTPATCH_PLATFORM_LIST))
+RET_ARM_HOTPATCH = $(findstring $(PLAT_FORM_NAME),$(HOTPATCH_ARM_LIST))
+
+ifeq ($(ENABLE_HOTPATCH)_$(RET_HOTPATCH), ON_)
+    $(warning Current OS($(PLAT_FORM_NAME)) is not in os list, don't support ENABLE_HOTPATCH!!, supported plantform list is $(HOTPATCH_PLATFORM_LIST))
+    ENABLE_HOTPATCH = OFF
+endif
+
+ifeq ($(ENABLE_UT), ON)
+    BUILD_MODE = Ut
+    $(info ENABLE_UT is on!, we use llt lib, and build debug pkg.
+    LIB_MODE = llt
+    COMPILE_MACRO += -DENABLE_UT
+endif
+
+SECURE_OPTIONS = -fno-common -fstack-protector-strong -fPIE
+SECURE_LINK_OPTS = -Wl,-z,noexecstack -Wl,-z,relro,-z,now -pie
+PROTECT_OPTIONS = -fwrapv -std=c++11 $(OPTIMIZE_LEVEL)
+WARNING_OPTIONS = -Wall -Wendif-labels -Werror -Wformat-security
+OPTIMIZE_OPTIONS = -pipe -fno-aggressive-loop-optimizations -fno-expensive-optimizations -fno-omit-frame-pointer -fno-strict-aliasing -freg-struct-return
+CHECK_OPTIONS = -Wmissing-format-attribute -Wno-attributes -Wno-unused-but-set-variable -Wno-write-strings -Wpointer-arith
+
+COMM_INC = $(PROJECT_SOURCE_DIR)/src/include \
+        $(PROJECT_SOURCE_DIR)/src/include/cm \
+        $(PROJECT_SOURCE_DIR)/src/include/cm/cm_adapter \
+        $(PROJECT_SOURCE_DIR)/src/include/cm/cm_server \
+        $(PROJECT_SOURCE_DIR)/src/include/cm/cm_agent \
+        $(PROJECT_SOURCE_DIR)/src/include/cm/cm_ctl \
+        $(SSL_DIRECTORY_INC) \
+        $(SECURE_DIRECTORY_INC) \
+        $(CMAKE_BINARY_DIR) \
+        $(PROJECT_SOURCE_DIR)/src/include/opengauss \
+        $(PROJECT_SOURCE_DIR)/src/include/opengauss/cm \
+        $(PROJECT_SOURCE_DIR)/src/include/opengauss/alarm \
+        $(PROJECT_SOURCE_DIR)/src/include/opengauss/common/config
+
+# third part
+ifeq (x$(GCC_VERSION), x)
+    GCC_VERSION = 7.3.0
+endif
+
+# to avoid the different of binarylibs and library
+CJSON_DIR = cjson
+ZLIB_DIR = zlib1.2.11
+
+3RD_PATH = $(THIRD_BIN_PATH)
+ifeq ($(ENABLE_LIBPQ), OFF)
+    3RD_PATH = $(PROJECT_SOURCE_DIR)/library
+    LIB_MODE =
+    LIB_MODE_COMM =
+
+    3RD_DEPENDENCY_ROOT = $(3RD_PATH)
+    3RD_PLATFORM_ROOT = $(3RD_PATH)
+    3RD_BUILDTOOLS_ROOT = $(3RD_PATH)
+    CJSON_DIR = cJSON
+    ZLIB_DIR = zlib
+
+    ENABLE_HOTPATCH = OFF
+else
+    ENABLE_LIBPQ = ON
+    ifeq (x$(3RD_PATH), x)
+        3RD_PATH = $(PROJECT_SOURCE_DIR)/binarylibs
+    endif
+
+    3RD_DEPENDENCY_ROOT = $(3RD_PATH)/kernel/dependency
+    3RD_PLATFORM_ROOT = $(3RD_PATH)/kernel/platform/
+    3RD_BUILDTOOLS_ROOT = $(3RD_PATH)/buildtools/
+endif
+
+ifeq ($(ENABLE_LIBPQ), OFF)
+    ENABLE_MULTIPLE_NODES = OFF
+    ENABLE_ALARM = OFF
+else
+    COMPILE_MACRO += -DENABLE_LIBPQ
+endif
+
+ifeq ($(ENABLE_MULTIPLE_NODES), ON)
+    COMPILE_MACRO += -DENABLE_MULTIPLE_NODES
+    DIST_PATH = $(PROJECT_SOURCE_DIR)/distribute
+endif
+
+ifeq ($(ENABLE_PRIVATEGAUSS), ON)
+    COMPILE_MACRO += -DENABLE_PRIVATEGAUSS
+    DIST_PATH = $(PROJECT_SOURCE_DIR)/distribute
+endif
+
+PGPORT_HOME = $(PROJECT_SOURCE_DIR)/common_lib/port
+LIB_DCC_HOME = $(PROJECT_SOURCE_DIR)/common_lib/dcc
+
+SECURE_HOME = $(3RD_PLATFORM_ROOT)/Huawei_Secure_C/$(LIB_MODE_COMM)
+KRB_HOME = $(3RD_DEPENDENCY_ROOT)/kerberos/$(LIB_MODE)
+LIB_PSUTIL_HOME = $(3RD_DEPENDENCY_ROOT)/psutil
+# hotpatch
+3RD_HOTPATCH_HOME = $(3RD_PLATFORM_ROOT)/hotpatch
+
+DCC_DIRECTORY_INC = $(LIB_DCC_HOME)/include
+DCC_DIRECTORY_LIB = $(LIB_DCC_HOME)/lib
+GSTOR_DIRECTORY_LIB = $(LIB_GSTOR_HOME)/lib
+
+3RD_HOTPATCH_INC = $(3RD_HOTPATCH_HOME)/include
+3RD_HOTPATCH_LIB = $(3RD_HOTPATCH_HOME)/lib
+3RD_HOTPATCH_TOOL = $(3RD_HOTPATCH_HOME)/tool
+3RD_HOTPATCH_CONFIG = $(3RD_HOTPATCH_HOME)/config
+SECURE_DIRECTORY_INC = $(SECURE_HOME)/include
+SECURE_DIRECTORY_LIB = $(SECURE_HOME)/lib
+CJSON_DIRECTORY_INC = $(3RD_DEPENDENCY_ROOT)/$(CJSON_DIR)/$(LIB_MODE)/include
+CJSON_DIRECTORY_LIB = $(3RD_DEPENDENCY_ROOT)/$(CJSON_DIR)/$(LIB_MODE)/lib
+ifeq ($(ENABLE_MULTIPLE_NODES), ON)
+    CGROUP_DIRECTORY_INC = $(3RD_DEPENDENCY_ROOT)/libcgroup/$(LIB_MODE)/include
+    CGROUP_DIRECTORY_LIB = $(3RD_DEPENDENCY_ROOT)/libcgroup/$(LIB_MODE)/lib
+endif
+SSL_DIRECTORY_INC = $(3RD_DEPENDENCY_ROOT)/openssl/$(LIB_MODE)/include
+SSL_DIRECTORY_LIB = $(3RD_DEPENDENCY_ROOT)/openssl/$(LIB_MODE)/lib
+SSL_DIRECTORY_BIN = $(3RD_DEPENDENCY_ROOT)/openssl/$(LIB_MODE)/bin
+ZLIB_DIRECTORY_INC = $(3RD_DEPENDENCY_ROOT)/$(ZLIB_DIR)/$(LIB_MODE)/include
+ZLIB_DIRECTORY_LIB = $(3RD_DEPENDENCY_ROOT)/$(ZLIB_DIR)/$(LIB_MODE)/lib
+# LZ4_DIRECTORY_INC $(3RD_DEPENDENCY_ROOT)/lz4/$(LIB_MODE)/include
+LZ4_DIRECTORY_LIB = $(3RD_DEPENDENCY_ROOT)/lz4/$(LIB_MODE)/lib
+ETCD_DIRECTORY_INC = $(3RD_DEPENDENCY_ROOT)/etcd/$(LIB_MODE_COMM)/include
+ETCD_DIRECTORY_LIB = $(3RD_DEPENDENCY_ROOT)/etcd/$(LIB_MODE_COMM)/lib
+ETCD_DIRECTORY_BIN = $(3RD_DEPENDENCY_ROOT)/etcd/$(LIB_MODE_COMM)/bin
+# ZSTD_DIRECTORY_INC = $(3RD_DEPENDENCY_ROOT)/zstd/include
+ZSTD_DIRECTORY_LIB = $(3RD_DEPENDENCY_ROOT)/zstd/lib
+CM_ADAPTER_PATH = $(PROJECT_SOURCE_DIR)/src/cm_adapter
+CM_ADAPTER_LIBS = libcmddbadapter.a libcmdccadapter.a libcmetcdadapter.a
+ifeq ($(ENABLE_ETCD), ON)
+    CM_ADAPTER_LIBS += libetcdapi.a
+endif
+CM_BASE_LIBS = libconfig.a libalarmclient.a libcmcommon.a libcmclient.a libcmpq.a libcmprotocol.a libhotpatchclient.a
+
+CM_LIB_PATH = $(PROJECT_SOURCE_DIR)/src/lib
+CM_COMMUNICATION_PATH = $(PROJECT_SOURCE_DIR)/src/cm_communication
+CM_COMMON_PATH = $(PROJECT_SOURCE_DIR)/src/cm_common
+
+DCC_ALL_LIBS = $(DCC_DIRECTORY_LIB) $(SSL_DIRECTORY_LIB) $(ZSTD_DIRECTORY_LIB) $(LZ4_DIRECTORY_LIB)
+3RD_LIB_PATH = $(CJSON_DIRECTORY_LIB) $(CGROUP_DIRECTORY_LIB) $(SSL_DIRECTORY_LIB) $(DCC_ALL_LIBS) $(PGPORT_HOME) $(SECURE_DIRECTORY_LIB)
+# some objs
+DCC_LIBS = dcc gstor dcf cjson zstd lz4 ssl crypto
+ETCD_LIBS = clientv3
+
+ifeq ($(ENABLE_ETCD), ON)
+    3RD_LIB_PATH += $(ETCD_DIRECTORY_LIB)
+    COMM_INC += $(ETCD_DIRECTORY_INC)
+endif
+
+ifeq ($(ENABLE_MEMCHECK), ON)
+    MEMCHECK_HOME = $(3RD_DEPENDENCY_ROOT)/memcheck/debug
+    MEMCHECK_LIB_PATH = $(MEMCHECK_HOME)/gcc$(GCC_VERSION)/lib
+
+    MEMCHECK_FLAGS = -fsanitize=address -fsanitize=leak -fno-omit-frame-pointer
+    MEMCHECK_LIBS = asan rt dl
+    MEMCHECK_LINK_DIRECTORIES = $(MEMCHECK_LIB_PATH)
+    SECURE_OPTIONS += -fstack-protector
+
+    COMPILE_OPTIONS += $(MEMCHECK_FLAGS)
+endif
+
+ifeq ($(ENABLE_GCOV), ON)
+    $(info add coverage dependencies.)
+    GCOV_FLAGS = -fprofile-arcs -ftest-coverage
+    GCOV_LIBS = gcov
+
+    LIBS += -l$(GCOV_LIBS)
+    COMPILE_OPTIONS += $(GCOV_FLAGS)
+    COMPILE_MACRO += -DENABLE_GCOV
+endif
+
+ifeq ($(ENABLE_HOTPATCH), ON)
+    ifneq (x$(RET_ARM_HOTPATCH), x)
+        ifeq ($(BUILD_TYPE), Debug)
+            HOTPATCH_ATOMIC_LDS = -Wl,-T$(3RD_HOTPATCH_TOOL)/atomic_debug.lds
+        else
+            HOTPATCH_ATOMIC_LDS = -Wl,-T$(3RD_HOTPATCH_TOOL)/atomic.lds
+        endif
+    endif
+endif
+
+G_BIN_EXT_LIBS = $(MEMCHECK_LIBS)
+
+G_COMPILE_OPTIONS = $(OS_OPTIONS) $(CM_COMMON_FLAGS) $(OPTIMIZE_LEVEL) $(SECURE_OPTIONS) $(PROTECT_OPTIONS) $(WARNING_OPTIONS) $(OPTIMIZE_OPTIONS) $(CHECK_OPTIONS)
+
+G_LINK_OPTIONS = $(CM_COMMON_FLAGS) $(SECURE_LINK_OPTS)
+# secure opt
+SKIP_RPATH = TRUE
+
+COMPILE_OPTIONS += $(G_COMPILE_OPTIONS)
+CXXFLAGS += $(COMPILE_OPTIONS)
+CXXFLAGS += $(G_LINK_OPTIONS)
+
+LDFLAGS += $(addprefix -L,$(3RD_LIB_PATH))
+LDFLAGS += -L$(CM_COMMON_PATH)
+LDFLAGS += -L$(CM_ADAPTER_PATH)/cm_dcc_adapter -L$(CM_ADAPTER_PATH)/cm_ddb_adapter -L$(CM_ADAPTER_PATH)/cm_etcd_adapter -L$(CM_ADAPTER_PATH)/cm_etcdapi
+LDFLAGS += -L$(CM_LIB_PATH)/config -L$(CM_LIB_PATH)/alarm -L$(CM_LIB_PATH)/alarm -L$(CM_LIB_PATH)/hotpatch/client
+LDFLAGS += -L$(CM_COMMUNICATION_PATH)/cm_feconnect -L$(CM_COMMUNICATION_PATH)/cm_libpq -L$(CM_COMMUNICATION_PATH)/cm_protocol
+
+# libpq must need krb5
+ifneq ($(ENABLE_KRB)_$(ENABLE_LIBPQ), OFF_OFF)
+    KRB_LIBS = gssapi_krb5_gauss krb5_gauss k5crypto_gauss com_err_gauss krb5support_gauss
+    LDFLAGS += -L$(KRB_HOME)/lib
+    COMM_INC += $(KRB_HOME)/include
+
+    ifeq ($(ENABLE_KRB), ON)
+        COMPILE_MACRO += -DKRB5
+    endif
+endif
+
+ifeq ($(ENABLE_LIBPQ), ON)
+    COMM_INC += $(PROJECT_SOURCE_DIR)/src/include/cm/cm_agent/clients/libpq
+endif
+
+CXXFLAGS += $(COMPILE_MACRO) -DDEF_CM_VERSION="\"$(CM_VERSION_STR)\""
+CPPFLAGS += $(addprefix -I,$(COMM_INC))
+
+# 3rd things that we needed:
+
+
+##########################################################################
+# Recursive make support
+##########################################################################
+# ----------------------
+# Instead of recursing through subdirectories with a for loop or
+# repeated $(MAKE) -C whatever calls, this is a little smarter: it
+# allows parallel make across directories and lets make -k and -q work
+# correctly.
+
+# We need the $(eval) function and order-only prerequisites, which are
+# available in GNU make 3.80.  That also happens to be the version
+# where the .VARIABLES variable was introduced, so this is a simple check.
+ifndef .VARIABLES
+$(error GNU make 3.80 or newer is required.  You are using version $(MAKE_VERSION))
+endif
+
+# This function is only for internal use below.  It should be called
+# using $(eval).  It will set up a target so that it recurses into
+# a given subdirectory.  Note that to avoid a nasty bug in make 3.80,
+# this function has to avoid using any complicated constructs (like
+# multiple targets on a line) and also not contain any lines that expand
+# to more than about 200 bytes.  This is why we make it apply to just one
+# subdirectory at a time, rather than to a list of subdirectories.
+# $1: target name, e.g., all
+# $2: subdir name
+# $3: target to run in subdir, usually same as $1
+standard_targets = all install installdirs uninstall distprep clean distclean maintainer-clean coverage check installcheck maintainer-check 2pccheck
+define _create_recursive_target
+.PHONY: $(1)-$(2)-recurse
+$(1): $(1)-$(2)-recurse
+$(1)-$(2)-recurse:
+	$$(MAKE) -C $(2) $(3)
+endef
+# Note that the use of $$ on the last line above is important; we want
+# $(MAKE) to be evaluated when the rule is run, not when the $(eval) is run
+# to create the rule.  This is necessary to get make -q working.
+
+# Call this function in a makefile that needs to recurse into subdirectories.
+# In the normal case all arguments can be defaulted.
+# $1: targets to make recursive (defaults to list of standard targets)
+# $2: list of subdirs (defaults to SUBDIRS variable)
+# $3: target to run in subdir (defaults to current element of $1)
+recurse = $(foreach target,$(if $1,$1,$(standard_targets)),$(foreach subdir,$(if $2,$2,$(SUBDIRS)),$(eval $(call _create_recursive_target,$(target),$(subdir),$(if $3,$3,$(target))))))
+
+# If a makefile's list of SUBDIRS varies depending on configuration, then
+# any subdirectories excluded from SUBDIRS should instead be added to
+# ALWAYS_SUBDIRS, and then it must call recurse_always as well as recurse.
+# This ensures that distprep, distclean, etc will apply to all subdirectories.
+# In the normal case all arguments will be defaulted.
+# $1: targets to make recursive (defaults to standard_always_targets)
+# $2: list of subdirs (defaults to ALWAYS_SUBDIRS variable)
+# $3: target to run in subdir (defaults to current element of $1)
+recurse_always = $(foreach target,$(if $1,$1,$(standard_always_targets)),$(foreach subdir,$(if $2,$2,$(ALWAYS_SUBDIRS)),$(eval $(call _create_recursive_target,$(target),$(subdir),$(if $3,$3,$(target))))))

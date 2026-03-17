@@ -1,0 +1,10 @@
+include_directories(${PROJECT_INC_BASE}/cm/cm_adapter)
+
+if (ENABLE_ETCD)
+    add_subdirectory(cm_etcdapi)
+endif ()
+add_subdirectory(cm_etcd_adapter)
+add_subdirectory(cm_dcc_adapter)
+add_subdirectory(cm_sharediskapi)
+add_subdirectory(cm_sharedisk_adapter)
+add_subdirectory(cm_ddb_adapter)

@@ -1,0 +1,7 @@
+option(ENABLE_MULTIPLE_NODES "distribute or centralize" OFF)
+option(ENABLE_PRIVATEGAUSS "private gauss support" OFF)
+option(ENABLE_HOTPATCH "add hotpatch support" OFF)
+option(ENABLE_ETCD "add etcd client support" OFF)
+option(ENABLE_LIBPQ "add libpq client(V5) support" ON)
+option(ENABLE_KRB "add kerberos support" OFF)
+option(ENABLE_ALARM "add alarm support" ON)

@@ -1,0 +1,4 @@
+// this file is auto generate by build/cmake/config.h.in
+#ifndef DEF_CM_VERSION
+#define DEF_CM_VERSION "@CM_VERSION_STR@"
+#endif

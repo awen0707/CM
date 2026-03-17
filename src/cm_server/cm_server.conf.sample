@@ -1,0 +1,96 @@
+log_dir = 'log'                 	#default is cm_server data dir
+log_file_size = 16MB          	# only support MB
+log_min_messages = WARNING    	# log_min_messages.
+								#Default WARNING.
+								# Valid value: DEBUG5, DEBUG1, WARNING, ERROR, LOG, FATAL
+thread_count = 1000    			# thread count of the cmserver thread pool
+								# range: [2 - 1000]
+instance_heartbeat_timeout = 6		#timeout of cm_server receive instance status and heartbeat in sec
+coordinator_heartbeat_timeout = 25	#timeout of cm_server receive coordinator status and heartbeat to delete it in sec. if set 0,the function is disabled 
+instance_failover_delay_timeout = 0	#delay seconds before cm_server send FAILOVER command to cm_agent
+cmserver_ha_connect_timeout = 2		#timeout of cm_server connect to the other cm_server in sec
+cmserver_ha_heartbeat_timeout = 6	#timeout of cm_server receive heartbeat from the other cm_server in sec
+cmserver_ha_status_interval = 1		#interval of cm_server send status to the other cm_server in sec
+cmserver_self_vote_timeout = 6		#timeout of cm_server voting to run as Primary  in sec.
+                                        #This parameter works only when cmserver_self_vote_timeout >= cmserver_ha_heartbeat_timeout, otherwise, it will work based on cmserver_ha_heartbeat_timeout. 
+phony_dead_effective_time = 5      #the times for phony dead to effective
+cm_server_arbitrate_delay_base_time_out = 10    #Based time that cm_server needs to arbitrate, cm_server arbitrate delay timeout is decided by base time and incremental time.
+cm_server_arbitrate_delay_incrememtal_time_out = 3      #Incremental time that cm_server needs to arbitrate, cm_server arbitrate delay timeout is decided by base time and incremental time.
+
+alarm_component = '/opt/huawei/snas/bin/snas_cm_cmd'    # Sets the component for alarm function
+alarm_report_interval = 3		# Set the alarm report interval, default is 3 secs
+alarm_report_max_count = 1		# Set the alarm report max count, default is 5 secs
+
+#if a instance heartbeat can not report and over this value, it will be killed
+instance_keep_heartbeat_timeout = 40
+#az will auto switchover when dn fault percent beyond this value
+az_switchover_threshold = 100
+#az check and arbitrate interval
+az_check_and_arbitrate_interval = 2
+#interval between two az connect check
+az_connect_check_interval = 60
+#detect az connect delay time, there are many detection in one check
+az_connect_check_delay_time = 150
+#delay time of cmserver from primary to standby when etcd unhealth
+cmserver_demote_delay_on_etcd_fault = 8
+#instance restart interval because of phony dead
+instance_phony_dead_restart_interval = 21600
+#enable read only if storage over threshold,Valid value: on,off,true,false,yes,no,1,0
+enable_transaction_read_only = on
+#second of check threshold
+datastorage_threshold_check_interval = 10
+#data directory threshold check
+datastorage_threshold_value_check = 85
+#enable check sys disk uasge in shared usage
+ss_enable_check_sys_disk_usage = 0
+#modify from read only to read write for recovery disk usage,12 hours default
+max_datastorage_threshold_check = 43200
+#enable switchover cross AZ
+enable_az_auto_switchover = 1
+#cm kerberos authentication method
+cm_auth_method = trust
+#cm kerberos server keyfile
+cm_krb_server_keyfile ='${GAUSSHOME}/kerberos/{UserName}.keytab'
+#switchover RTO
+switch_rto = 600
+#whether force promote should be commited (0 or 1, 0 is for no and 1 is for yes)
+force_promote = 0
+backup_open = 0
+#arbitration delay time when the cluster is starting
+cluster_starting_aribt_delay = 180
+enable_dcf = off
+enable_e2e_rto = 0                                           #enable extreme rto, 1 means on, 0 means off
+ddb_type = 0      # 0 etcd 1 dcc
+enable_ssl = off
+ssl_cert_expire_alert_threshold = 90
+ssl_cert_expire_check_interval = 86400
+delay_arbitrate_timeout = 0   # waiting for the dn whose az is sname az with primary dn will redo done
+# ddb parameter
+ddb_log_level = RUN_ERR|RUN_WAR|DEBUG_ERR|OPER|RUN_INF|PROFILE # ddb log level
+ddb_log_backup_file_count = 10           # Maximum number of log files that can be saved
+ddb_max_log_file_size = 10M              # Maximum number of bytes in a log
+ddb_log_suppress_enable = 1              # Indicates whether to enable the log suppression function. 1: open 0, close
+ddb_election_timeout = 3                 # DCC election timeout interval [1S,600S]
+share_disk_path = ''
+third_party_gateway_ip = ''				 # used in 2 nodes cluster for ddb role arbitration with network isolation, 
+										 # when cms_enable_failover_on2nodes is true.
+										 # default ''. if cms_enable_failover_on2nodes is true, this param must be configured.
+cms_enable_failover_on2nodes = false	 # used in 2 nodes cluster. if true, will use third_party_gateway_ip as an arbitrator, 
+										 # when network isolation happens.
+										 # default false.
+cms_enable_db_crash_recovery = false	 # used in 2 nodes cluster. when network recovers from isolation, 
+										 # if there are two db primary nodes,
+										 # if this param is true, cms will choice a new db primary, and demote the other db.
+										 # if false, cms will choice a new db primary, but manually stop the other db.
+										 # default false
+cms_network_isolation_timeout = 20		 # cms judges the network is isolated when it finds ddb cluster is not sync with each other nodes,
+										 # after cms_network_isolation_timeout times.
+										 # default 20
+ss_double_cluster_mode = 0               # cluster run mode for ss double cluster scene, Valid value: 0-2
+share_disk_lock_type = 0					 # share disk lock type,  Valid value: 0-1, 0 is noraml, 1 is dorado
+enable_set_most_available_sync = off     # whether allow cm_server to manage dn most_available_sync
+                                         # default off
+cmserver_set_most_available_sync_delay_times = 6 # delay times when cm_server need to send modify most_available_sync command.
+upgrade_from = 0                         # the version number of the cluster before upgrade
+cms_enable_failover_cascade = false      # if true, the system will promote a cascaded standby node when all standby nodes are abnormal.
+############### must leave a new line at the end ###################

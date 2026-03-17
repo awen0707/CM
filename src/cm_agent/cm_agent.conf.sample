@@ -1,0 +1,54 @@
+log_dir = 'log'                   # default is cm_agent data dir
+log_file_size = 16MB            # only support MB
+log_min_messages = WARNING      # log_min_messages.
+                                # Default WARNING.
+                                # Valid value: DEBUG5, DEBUG1, WARNING, ERROR, LOG, FATAL
+incremental_build = on          # Enable the dn incremental build mode.
+                                # Default on.
+                                # Valid value: on, off
+security_mode = off             # Enable the datanode or coordinator security mode.
+                                # Default off.
+                                # Valid value: on, off
+upgrade_from = 0                # the version number of the cluster before upgrade
+alarm_component = '/opt/huawei/snas/bin/snas_cm_cmd'    # Sets the component for alarm function                            
+agent_report_interval = 1	#interval of cm_agent report instance status to cm_server in sec
+agent_heartbeat_timeout = 8	#timeout of cm_agent receive cm_server heartbeat in sec, when cma don't get the heartbeat msg from cms for this time, it will kill conn of cms
+agent_connect_timeout = 1	#timeout of cm_agent connect to cm_server in sec
+agent_connect_retries = 15	#cm_agent retry to connect to cm_server
+agent_kill_instance_timeout=0   #timeout for kill instances when cm_agent is lost connection with cms primary.
+                                #Default 0 means don't kill instances after it is lost.
+                                #If configured, it must be greater than the time that was exausted by cms to promote as primary.
+alarm_report_interval = 1	# Set the alarm report interval
+				# Default 10 secs.
+alarm_report_max_count = 1	# Set the alarm report max count
+				# Default 5 times.
+agent_check_interval = 2        #Time interval for cm_agent checking the instance.
+enable_log_compress          = on                             #enable compress log,Valid value: on, off	
+process_cpu_affinity         = 0                              #enable cpu bind, Valid value: 0-2
+                                                              #default 0
+enable_xc_maintenance_mode   = on                             #enable using xc_maintenance_mode to connect cn/dn
+log_threshold_check_interval = 1800
+log_max_size=10240                                            #the unit is MB,the priority is 5
+log_max_count=10000                                           #the max trace count save on disk,the priority is 3
+log_saved_days=90                                             #guard trace saved days,the priority,the priority is 4
+enable_cn_auto_repair = on                                    #enable auto repair coordinator
+agent_phony_dead_check_interval = 10                          #the interval of cm_agent check CN/DN/GTM phony dead
+enable_gtm_phony_dead_check = 1                               #enable gtm phony dead check, 1 means on, 0 means off
+unix_socket_directory = ''                                    #directory of unix socket
+dilatation_shard_count_for_disk_capacity_alarm = 1             #check disk capacity, 0 means off, bigger than 0 means dilatation shard number
+enable_dcf = off
+enable_e2e_rto = 0                                            #enable extreme rto, 1 means on, 0 means off
+disaster_recovery_type = 0
+environment_threshold = (0,0,0,0,0)
+agent_backup_open = 0
+agent_rhb_interval = 1000                                     # the heatbeat of cma to cma broadcast interval, unit is ms
+enable_ssl = off                                              # enable cma to cma ssl
+ssl_cert_expire_alert_threshold = 90
+ssl_cert_expire_check_interval = 86400
+db_service_vip = ''                                           # db primary virtual ip address
+                                                              # default '' means no virutal ip configured
+enable_fence_dn = off                                        #enable fence the datanode when cma cannot connect to any cms.
+                                                             #if set to on, restart datenode after 30 seconds. otherwise, don't restart datanode.
+                                                             #default off
+ss_double_cluster_mode = 0                                   #cluster run mode for ss double cluster scene, Valid value: 0-2
+############### must leave a new line at the end ###################
